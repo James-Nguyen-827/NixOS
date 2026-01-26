@@ -41,7 +41,6 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
-          token: ${{ secrets.NIX_PAT }}
 
       - name: Install Nix
         uses: nixbuild/nix-quick-install-action@v34
