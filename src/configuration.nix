@@ -42,6 +42,7 @@
     wget
     git
     jq
+    python3
   ];
 
   system.stateVersion = "25.11";
