@@ -9,4 +9,4 @@
 ## Build and Deployment Commands
 
 - `just build`: build the current configuration
-- `just deploy`: deploy the current configuration
+- `just deploy`: deploy the latest remote configuration
