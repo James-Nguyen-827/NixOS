@@ -10,4 +10,4 @@ build:
 
 # Deploy the configuration to the target host
 deploy:
-    ssh {{user}}@{{local_ip}} "sudo nixos-rebuild switch --flake github:James-Nguyen-827/NixOS#default"
+    ssh {{user}}@{{local_ip}} "~/deploy.sh"
