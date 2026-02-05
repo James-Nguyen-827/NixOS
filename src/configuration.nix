@@ -38,12 +38,27 @@
     LC_TIME = "en_US.UTF-8";
   };
 
+  services.hardware.openrgb.enable = true;
+
   environment.systemPackages = with pkgs; [
     wget
     git
     jq
     python3
+    openrgb
   ];
+
+  # Set all RGB devices to off (black) after boot when devices are available
+  systemd.services.openrgb-set-black = {
+    description = "Set all OpenRGB devices to black/off";
+    after = [ "multi-user.target" ];
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig.Type = "oneshot";
+    script = ''
+      sleep 5
+      ${pkgs.openrgb}/bin/openrgb --noautoconnect -m static -c 000000 2>/dev/null || true
+    '';
+  };
 
   system.stateVersion = "25.11";
   nixpkgs.hostPlatform = {
