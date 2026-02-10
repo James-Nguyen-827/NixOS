@@ -4,6 +4,7 @@
     ./hardware-configuration.nix
     ./user.nix
     ./ssh.nix
+    ./minecraft.nix
   ];
 
   boot.loader.systemd-boot.enable = true;
