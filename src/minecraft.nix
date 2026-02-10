@@ -20,6 +20,8 @@ let
   };
 
   # Startup script runs in dataDir. Installs modpack on first run, then starts Fabric server.
+  # Java must be from Nix (full path); service has no java in PATH.
+  java = pkgs.jdk21;
   startupScript = pkgs.writeShellScript "minecraft-server" ''
     set -e
     if [ ! -f server.jar ] && [ ! -f fabric-server-launch.jar ]; then
@@ -34,7 +36,7 @@ let
     [ -z "$JAR" ] && [ -f server.jar ] && JAR="server.jar"
     [ -z "$JAR" ] && JAR=$(ls *.jar 2>/dev/null | head -1)
     [ -z "$JAR" ] && { echo "No server jar found. Remove server directory and restart to reinstall."; exit 1; }
-    exec java "$@" -jar "$JAR" nogui
+    exec "${java}/bin/java" "$@" -jar "$JAR" nogui
   '';
 
   cobbleverse-server = pkgs.runCommand "minecraft-cobbleverse-server" { } ''
