@@ -17,15 +17,23 @@ let
     name = "craft-to-exile-2-server-1.1.3.zip";
   };
 
+  # Marker so we don't treat an old Fabric (e.g. Cobbleverse) run.jar as our Forge install.
+  FORGE_MARKER = ".craft-to-exile-2-forge";
+
   # Startup script runs in dataDir. Installs Forge and extracts modpack on first run, then starts Forge server.
   java = pkgs.jdk21;
   startupScript = pkgs.writeShellScript "minecraft-server" ''
     set -e
     DATA_DIR="$(pwd)"
 
-    # First run: install Forge server, then extract modpack overrides (mods, config, etc.)
-    if [ ! -f run.jar ] && [ ! -f forge-*.jar ]; then
-      echo "First run: installing Forge 1.20.1 and Craft to Exile 2 modpack..."
+    # First run or migration from Fabric: install Forge and Craft to Exile 2. Without the marker we may
+    # be on a machine that had Cobbleverse (Fabric); remove Fabric launcher/libraries so Forge can install.
+    if [ ! -f "$DATA_DIR/${FORGE_MARKER}" ]; then
+      echo "Installing Forge 1.20.1 and Craft to Exile 2 modpack..."
+      rm -f "$DATA_DIR/run.jar" "$DATA_DIR/fabric-server-launch.jar" "$DATA_DIR/server.jar" 2>/dev/null || true
+      [ -d "$DATA_DIR/libraries" ] && rm -rf "$DATA_DIR/libraries"
+      [ -d "$DATA_DIR/mods" ] && rm -rf "$DATA_DIR/mods"
+
       cp "${forgeInstaller}" "$DATA_DIR/forge-installer.jar"
       "${java}/bin/java" -jar "$DATA_DIR/forge-installer.jar" --installServer
       rm -f "$DATA_DIR/forge-installer.jar"
@@ -35,12 +43,12 @@ let
       if [ -d "$DATA_DIR/modpack-extract/overrides" ]; then
         cp -r "$DATA_DIR/modpack-extract/overrides"/* "$DATA_DIR/"
       else
-        # Server pack or flat layout: copy everything except manifest
         for d in mods config defaultconfigs kubejs; do
           [ -d "$DATA_DIR/modpack-extract/$d" ] && cp -rn "$DATA_DIR/modpack-extract/$d" "$DATA_DIR/"
         done
       fi
       rm -rf "$DATA_DIR/modpack-extract"
+      touch "$DATA_DIR/${FORGE_MARKER}"
     fi
 
     if [ ! -f eula.txt ] || ! grep -q 'eula=true' eula.txt 2>/dev/null; then
