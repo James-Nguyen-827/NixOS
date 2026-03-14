@@ -27,13 +27,13 @@ let
     # Ensure whitelist is on so only whitelisted players can connect
     if [ -f server.properties ]; then
       if grep -q '^white-list=' server.properties; then
-        ${pkgs.coreutils}/bin/sed -i 's/^white-list=.*/white-list=true/' server.properties
+        sed -i 's/^white-list=.*/white-list=true/' server.properties
       else
         echo 'white-list=true' >> server.properties
       fi
       # Force the server to listen on port 25566 instead of the default 25565
       if grep -q '^server-port=' server.properties; then
-        ${pkgs.coreutils}/bin/sed -i 's/^server-port=.*/server-port=25566/' server.properties
+        sed -i 's/^server-port=.*/server-port=25566/' server.properties
       else
         echo 'server-port=25566' >> server.properties
       fi
