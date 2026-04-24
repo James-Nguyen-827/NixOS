@@ -1,4 +1,4 @@
-# Craft to Exile 2 — CurseForge 1.20.1 Forge modpack server (6GB RAM).
+# Craft to Exile 2 — CurseForge 1.20.1 Forge modpack server (8GB RAM).
 # Whitelist is enforced so only whitelisted players can join.
 #
 # Port forwarding (so friends can connect from the internet):
@@ -13,8 +13,8 @@
 
 let
   dataDir = "/var/lib/craft-to-exile-2";
-  # JVM heap: at least 6GB as requested
-  jvmOpts = "-Xms6G -Xmx6G -XX:+UseG1GC";
+  # JVM heap: 8GB for modded Forge
+  jvmOpts = "-Xms8G -Xmx8G -XX:+UseG1GC";
   # Enforce whitelist and custom port so only added players can join on 25566
   startScript = pkgs.writeShellScript "craft-to-exile-2-start" ''
     set -e
