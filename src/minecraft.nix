@@ -37,6 +37,12 @@ let
       else
         echo 'server-port=25566' >> server.properties
       fi
+      # Modded flight (common in modpacks) triggers vanilla anti-cheat kicks unless enabled
+      if grep -q '^allow-flight=' server.properties; then
+        sed -i 's/^allow-flight=.*/allow-flight=true/' server.properties
+      else
+        echo 'allow-flight=true' >> server.properties
+      fi
     fi
     export JAVA_TOOL_OPTIONS="${jvmOpts}"
     exec ${pkgs.bash}/bin/bash ./run.sh
