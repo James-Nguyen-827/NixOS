@@ -1,66 +1,77 @@
-# Minecraft server — COBBLEVERSE (Pokémon Adventure [Cobblemon]) modpack.
-# Modpack: https://modrinth.com/modpack/cobbleverse — Fabric 1.21.1.
-# First start installs the modpack via mrpack-install (~150MB download); later starts use existing install.
-# To switch back to vanilla: set package = pkgs.minecraftServers.vanilla, declarative = true, and remove mods in dataDir.
+# Craft to Exile 2 — CurseForge 1.20.1 Forge modpack server (8GB RAM).
+# Whitelist is enforced so only whitelisted players can join.
+#
+# Port forwarding (so friends can connect from the internet):
+#   1. On your router: forward TCP 25566 → 192.168.1.67:25566.
+#   2. Give friends your public IP (or a DDNS hostname) and port 25566.
+#
+# Adding players (required — they cannot join until whitelisted):
+#   In-game (as op): /whitelist add <MinecraftUsername>
+#   Or edit /var/lib/craft-to-exile-2/whitelist.json (see Minecraft wiki for format) and restart the service.
+#   To op yourself first: add your user to /var/lib/craft-to-exile-2/ops.json, then restart.
 { config, pkgs, ... }:
 
 let
-  # mrpack-install: deploys Modrinth modpacks (Fabric + mods) into a server directory.
-  mrpack-install = pkgs.buildGoModule rec {
-    pname = "mrpack-install";
-    version = "0.18.2";
-    src = pkgs.fetchFromGitHub {
-      owner = "nothub";
-      repo = "mrpack-install";
-      rev = "v${version}-beta";
-      hash = "sha256-g0AfC9RRyXfhUDI5oCCFjHvkbUFgmqKyrVnMJ7jiPkM=";
-    };
-    vendorHash = "sha256-4FKt/IcmI1ev/eHzQpicWkYWAh8axUgDL7QxXRioTnc=";
-    doCheck = false;  # Tests require network (maven.quiltmc.org)
-  };
-
-  # Startup script runs in dataDir. Installs modpack on first run, then starts Fabric server.
-  # Java must be from Nix (full path); service has no java in PATH.
-  java = pkgs.jdk21;
-  startupScript = pkgs.writeShellScript "minecraft-server" ''
+  dataDir = "/var/lib/craft-to-exile-2";
+  # JVM heap: 8GB for modded Forge
+  jvmOpts = "-Xms8G -Xmx8G -XX:+UseG1GC";
+  # Enforce whitelist and custom port so only added players can join on 25566
+  startScript = pkgs.writeShellScript "craft-to-exile-2-start" ''
     set -e
-    if [ ! -f server.jar ] && [ ! -f fabric-server-launch.jar ]; then
-      echo "First run: installing COBBLEVERSE modpack (this may take a few minutes)..."
-      "${mrpack-install}/bin/mrpack-install" Jkb29YJU 1.7.2 --server-dir "$(pwd)" -v
+    cd "${dataDir}"
+    if [ ! -f run.sh ] && [ ! -f run.bat ]; then
+      echo "Craft to Exile 2 server pack not found in ${dataDir}."
+      echo "Download 'Craft to Exile 2 SERVER-*.zip' from CurseForge and extract it here."
+      exit 1
     fi
-    if [ ! -f eula.txt ] || ! grep -q 'eula=true' eula.txt 2>/dev/null; then
-      echo "eula=true" > eula.txt
+    # Ensure whitelist is on so only whitelisted players can connect
+    if [ -f server.properties ]; then
+      if grep -q '^white-list=' server.properties; then
+        sed -i 's/^white-list=.*/white-list=true/' server.properties
+      else
+        echo 'white-list=true' >> server.properties
+      fi
+      # Force the server to listen on port 25566 instead of the default 25565
+      if grep -q '^server-port=' server.properties; then
+        sed -i 's/^server-port=.*/server-port=25566/' server.properties
+      else
+        echo 'server-port=25566' >> server.properties
+      fi
+      # Modded flight (common in modpacks) triggers vanilla anti-cheat kicks unless enabled
+      if grep -q '^allow-flight=' server.properties; then
+        sed -i 's/^allow-flight=.*/allow-flight=true/' server.properties
+      else
+        echo 'allow-flight=true' >> server.properties
+      fi
     fi
-    JAR=""
-    [ -f fabric-server-launch.jar ] && JAR="fabric-server-launch.jar"
-    [ -z "$JAR" ] && [ -f server.jar ] && JAR="server.jar"
-    [ -z "$JAR" ] && JAR=$(ls *.jar 2>/dev/null | head -1)
-    [ -z "$JAR" ] && { echo "No server jar found. Remove server directory and restart to reinstall."; exit 1; }
-    exec "${java}/bin/java" "$@" -jar "$JAR" nogui
-  '';
-
-  cobbleverse-server = pkgs.runCommand "minecraft-cobbleverse-server" { } ''
-    mkdir -p $out/bin
-    cp ${startupScript} $out/bin/minecraft-server
-    chmod +x $out/bin/minecraft-server
+    export JAVA_TOOL_OPTIONS="${jvmOpts}"
+    exec ${pkgs.bash}/bin/bash ./run.sh
   '';
 in
 {
-  services.minecraft-server = {
-    enable = true;
-    eula = true;
-    openFirewall = true;
-    declarative = false;  # Modpack manages server.properties and config
+  # Disable vanilla minecraft-server; we use a custom service for the modpack
+  services.minecraft-server.enable = false;
 
-    package = cobbleverse-server;
-    dataDir = "/var/lib/minecraft";
+  # Open the custom server port in the firewall
+  networking.firewall.allowedTCPPorts = [ 25566 ];
 
-    # 12 GiB heap for ~25 players (32 GB host). Modpack recommends 6GB+ for multiplayer.
-    jvmOpts = "-Xms12G -Xmx12G -XX:+UseG1GC";
+  systemd.services.craft-to-exile-2 = {
+    description = "Craft to Exile 2 (CurseForge 1.20.1 Forge) server";
+    after = [ "network.target" ];
+    wantedBy = [ "multi-user.target" ];
 
-    # Only applied when declarative = true; kept for reference. Edit server.properties in dataDir if needed.
-    serverProperties = {
-      "server-port" = 25565;
+    serviceConfig = {
+      Type = "simple";
+      Restart = "on-failure";
+      RestartSec = "30s";
+      StateDirectory = "craft-to-exile-2";
+      WorkingDirectory = dataDir;
     };
+
+    path = [ pkgs.jdk17 ];
+
+    script = ''
+      exec ${startScript}
+    '';
   };
 }
